@@ -60,6 +60,7 @@
                 "device_manager",
                 "kv_store",
                 "libuv",
+                "node",
                 "common_event_service",
                 "dmsfwk",
                 "hisysevent",
