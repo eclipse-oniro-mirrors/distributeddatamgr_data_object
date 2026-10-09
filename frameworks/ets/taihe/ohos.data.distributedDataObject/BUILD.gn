@@ -107,11 +107,14 @@ if(!data_object_feature_L1){
       "ability_runtime:ani_common",
       "ability_runtime:app_context",
       "access_token:libaccesstoken_sdk",
+      "c_utils:utils",
       "eventhandler:libeventhandler",
       "hilog:libhilog",
       "ipc:ipc_single",
       "kv_store:distributeddata_inner",
       "kv_store:distributeddb",
+      "libuv:uv",
+      "node:node_header_notice",
     ]
   }
   
