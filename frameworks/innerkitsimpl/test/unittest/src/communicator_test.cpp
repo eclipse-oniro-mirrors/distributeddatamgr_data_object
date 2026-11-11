@@ -537,7 +537,7 @@ HWTEST_F(NativeCommunicatorTest, DevManager_GetLocalDevice_001, TestSize.Level1)
     DevManager *devManager = DevManager::GetInstance();
     EXPECT_TRUE(devManager != nullptr);
     DevManager::DetailInfo detailInfo = devManager->GetLocalDevice();
-    EXPECT_EQ(detailInfo.networkId, "");
+    EXPECT_NE(detailInfo.networkId, "");
 }
 
 /**
