@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <unordered_set>
 
 #include "hitrace.h"
@@ -49,10 +50,13 @@ DistributedObject *DistributedObjectStoreImpl::CacheObject(
 void DistributedObjectStoreImpl::RemoveCacheObject(const std::string &sessionId)
 {
     std::unique_lock<std::shared_mutex> cacheLock(dataMutex_);
+    std::lock_guard<std::mutex> watcherLock(watchersLock_);
     auto iter = objects_.begin();
     while (iter != objects_.end()) {
         if ((*iter)->GetSessionId() == sessionId) {
-            delete *iter;
+            DistributedObject *object = *iter;
+            watchers_.erase(object);
+            delete object;
             iter = objects_.erase(iter);
         } else {
             iter++;
@@ -112,6 +116,10 @@ uint32_t DistributedObjectStoreImpl::DeleteObject(const std::string &sessionId)
         LOG_ERROR("DistributedObjectStoreImpl::Sync object err ");
         return ERR_NULL_OBJECTSTORE;
     }
+    uint32_t unwatchStatus = flatObjectStore_->UnWatch(sessionId);
+    if (unwatchStatus != SUCCESS && unwatchStatus != ERR_NO_OBSERVER) {
+        LOG_ERROR("DistributedObjectStoreImpl::DeleteObject unwatch err %{public}d", unwatchStatus);
+    }
     uint32_t status = flatObjectStore_->Delete(sessionId);
     if (status != SUCCESS) {
         LOG_ERROR("DistributedObjectStoreImpl::DeleteObject store delete err %{public}d", status);
@@ -146,6 +154,11 @@ uint32_t DistributedObjectStoreImpl::Watch(DistributedObject *object, std::share
         LOG_ERROR("Watch sync flatObjectStore err ");
         return ERR_NULL_OBJECTSTORE;
     }
+    std::shared_lock<std::shared_mutex> cacheLock(dataMutex_);
+    if (std::find(objects_.begin(), objects_.end(), object) == objects_.end()) {
+        LOG_ERROR("DistributedObjectStoreImpl::Watch object not cached");
+        return ERR_GET_OBJECT;
+    }
     std::lock_guard<std::mutex> lock(watchersLock_);
     if (watchers_.count(object) != 0) {
         LOG_ERROR("DistributedObjectStoreImpl::Watch already gets object");
@@ -177,9 +190,14 @@ uint32_t DistributedObjectStoreImpl::UnWatch(DistributedObject *object)
         LOG_ERROR("UnWatch sync flatObjectStore err ");
         return ERR_NULL_OBJECTSTORE;
     }
+    std::shared_lock<std::shared_mutex> cacheLock(dataMutex_);
+    if (std::find(objects_.begin(), objects_.end(), object) == objects_.end()) {
+        LOG_ERROR("DistributedObjectStoreImpl::UnWatch object not cached");
+        return ERR_GET_OBJECT;
+    }
     uint32_t status = flatObjectStore_->UnWatch(object->GetSessionId());
     if (status != SUCCESS) {
-        LOG_ERROR("DistributedObjectStoreImpl::Watch failed %{public}d", status);
+        LOG_ERROR("DistributedObjectStoreImpl::UnWatch failed %{public}d", status);
         return status;
     }
     std::lock_guard<std::mutex> lock(watchersLock_);
