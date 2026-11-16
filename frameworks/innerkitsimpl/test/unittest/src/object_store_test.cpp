@@ -369,10 +369,10 @@ HWTEST_F(NativeObjectStoreTest, DistributedObjectStoreImpl_Watch_002, TestSize.L
     auto flatObjectStore = new FlatObjectStore(bundleName1);
     auto object1 = new DistributedObjectImpl(sessionId1, flatObjectStore);
     status = objectStore->Watch(object1, watcher);
-    EXPECT_EQ(ERR_DB_NOT_EXIST, status);
+    EXPECT_EQ(ERR_GET_OBJECT, status);
 
     status = objectStore->UnWatch(object1);
-    EXPECT_EQ(ERR_DB_NOT_EXIST, status);
+    EXPECT_EQ(ERR_GET_OBJECT, status);
 
     status = objectStore->UnWatch(object);
     EXPECT_EQ(SUCCESS, status);
@@ -381,6 +381,61 @@ HWTEST_F(NativeObjectStoreTest, DistributedObjectStoreImpl_Watch_002, TestSize.L
     EXPECT_EQ(SUCCESS, status);
     delete flatObjectStore;
     delete object1;
+}
+
+/**
+ * @tc.name: DistributedObjectStoreImpl_Watch_003
+ * @tc.desc: test Watch/UnWatch with object already deleted by DeleteObject
+ * @tc.type: FUNC
+ */
+HWTEST_F(NativeObjectStoreTest, DistributedObjectStoreImpl_Watch_003, TestSize.Level0)
+{
+    std::string bundleName = "default";
+    std::string sessionId = "sessionId_after_delete";
+    DistributedObjectStore *objectStore = DistributedObjectStore::GetInstance(bundleName);
+    ASSERT_NE(nullptr, objectStore);
+
+    DistributedObject *object = objectStore->CreateObject(sessionId);
+    ASSERT_NE(nullptr, object);
+
+    std::shared_ptr<MockObjectWatcher> watcher = std::make_shared<MockObjectWatcher>();
+    uint32_t status = objectStore->Watch(object, watcher);
+    EXPECT_EQ(SUCCESS, status);
+
+    status = objectStore->DeleteObject(sessionId);
+    EXPECT_EQ(SUCCESS, status);
+
+    status = objectStore->UnWatch(object);
+    EXPECT_EQ(ERR_GET_OBJECT, status);
+
+    status = objectStore->Watch(object, watcher);
+    EXPECT_EQ(ERR_GET_OBJECT, status);
+}
+
+/**
+ * @tc.name: DistributedObjectStoreImpl_UnWatch_002
+ * @tc.desc: test UnWatch on a cached object which was never watched
+ * @tc.type: FUNC
+ */
+HWTEST_F(NativeObjectStoreTest, DistributedObjectStoreImpl_UnWatch_002, TestSize.Level0)
+{
+    std::string bundleName = "default";
+    std::string sessionId = "sessionId_never_watch";
+    DistributedObjectStore *objectStore = DistributedObjectStore::GetInstance(bundleName);
+    ASSERT_NE(nullptr, objectStore);
+
+    DistributedObject *object = objectStore->CreateObject(sessionId);
+    ASSERT_NE(nullptr, object);
+
+    uint32_t status = objectStore->UnWatch(object);
+    EXPECT_EQ(ERR_NO_OBSERVER, status);
+
+    std::shared_ptr<MockObjectWatcher> watcher = std::make_shared<MockObjectWatcher>();
+    status = objectStore->Watch(object, watcher);
+    EXPECT_EQ(SUCCESS, status);
+
+    status = objectStore->DeleteObject(sessionId);
+    EXPECT_EQ(SUCCESS, status);
 }
 
 /**
