@@ -35,7 +35,7 @@ static UNUSED_FUNCTION uint32_t GetUid()
 #ifdef WINDOWS_PLATFORM
     return 0;
 #else
-    return getuid();
+    return getappuid();
 #endif
 }
 
